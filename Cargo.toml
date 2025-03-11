@@ -1,0 +1,13 @@
+[package]
+name = "galileo-protomaps"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = { version = "0.31", default-features = false }
+parking_lot = "0.12.3"
+serde_json = "1.0.140"
+galileo = { git = "https://github.com/Maximkaaa/galileo", package = "galileo" }
+galileo-egui = { git = "https://github.com/Maximkaaa/galileo", package = "galileo-egui" }
+galileo-types = { git = "https://github.com/Maximkaaa/galileo", package = "galileo-types" }
+egui = "0.31"
