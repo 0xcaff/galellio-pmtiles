@@ -4,88 +4,83 @@ use std::sync::Arc;
 
 use eframe::CreationContext;
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
-use galileo::layer::vector_tile_layer::style::VectorTileStyle;
+use galileo::layer::vector_tile_layer::tile_provider::loader::{TileLoadError, VectorTileLoader};
+use galileo::layer::vector_tile_layer::tile_provider::VectorTileProvider;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
-use galileo::layer::VectorTileLayer;
+use galileo::platform::native::vt_processor::ThreadVtProcessor;
 use galileo::tile_schema::{TileIndex, TileSchema, VerticalDirection};
 use galileo::{Lod, Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
+use galileo_mvt::MvtTile;
 use galileo_types::cartesian::{Point2, Rect};
 use galileo_types::geo::Crs;
 use parking_lot::RwLock;
+use pmtiles::async_reader::{AsyncBackend, AsyncPmTilesReader};
+use pmtiles::cache::DirectoryCache;
+use pmtiles::reqwest::Client;
+use pmtiles::{Compression, TileType};
+use tokio::io::AsyncReadExt;
 
-#[cfg(not(target_arch = "wasm32"))]
-fn main() {
-    run()
+struct ProtomapVectorTileLoader<B, C> {
+    reader: AsyncPmTilesReader<B, C>,
 }
 
-struct App {
-    map: EguiMapState,
-    layer: Arc<RwLock<VectorTileLayer>>,
-}
+#[async_trait::async_trait]
+impl<B, C> VectorTileLoader for ProtomapVectorTileLoader<B, C>
+where
+    B: AsyncBackend + Sync + Send,
+    C: DirectoryCache + Sync + Send,
+{
+    async fn load(&self, index: TileIndex) -> Result<MvtTile, TileLoadError> {
+        println!("loading index: {:?}", index);
+        let Ok(result) = self.reader
+                    .get_tile(index.z as _, index.x as _, index.y as _).await else {
+            return Err(TileLoadError::Network);
+        };
 
-impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            EguiMap::new(&mut self.map).show_ui(ui);
-        });
+        let Some(bytes) = result else {
+            return Err(TileLoadError::DoesNotExist);
+        };
 
-        egui::Window::new("Buttons")
-            .title_bar(false)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if ui.button("Gray style").clicked() {
-                        self.set_style(gray_style());
-                    }
-                });
-            });
+        let mut decompressed_bytes = Vec::new();
+        let Ok(..) = async_compression::tokio::bufread::GzipDecoder::new(&bytes[..])
+            .read_to_end(&mut decompressed_bytes)
+            .await else {
+            return Err(TileLoadError::Decoding);
+        };
+
+        let Ok(it) = MvtTile::decode(&*decompressed_bytes, true) else {
+            return Err(TileLoadError::Decoding);
+        };
+
+        Ok(it)
     }
 }
 
-impl App {
-    fn new(
-        map: Map,
-        layer: Arc<RwLock<VectorTileLayer>>,
-        cc: &CreationContext,
-        handler: impl UserEventHandler + 'static,
-    ) -> Self {
-        Self {
-            map: EguiMapState::new(
-                map,
-                cc.egui_ctx.clone(),
-                cc.wgpu_render_state.clone().expect("no render state"),
-                [Box::new(handler) as Box<dyn UserEventHandler>],
-            ),
-            layer,
-        }
-    }
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    let client = Client::new();
+    let backend =
+        AsyncPmTilesReader::new_with_url(client, "https://demo-bucket.protomaps.com/v4.pmtiles")
+            .await?;
 
-    fn set_style(&mut self, style: VectorTileStyle) {
-        let mut layer = self.layer.write();
-        if style != *layer.style() {
-            layer.update_style(style);
-            self.map.request_redraw();
-        }
-    }
-}
+    let header = backend.get_header();
+    assert_eq!(header.tile_compression, Compression::Gzip);
+    assert_eq!(header.tile_type, TileType::Mvt);
 
-pub(crate) fn run() {
-    let layer = VectorTileLayerBuilder::new_rest(move |&index: &TileIndex| {
-        format!(
-            "https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf",
-            z = index.z,
-            x = index.x,
-            y = index.y
-        )
-    })
-        .with_tile_schema(tile_schema())
-        .with_file_cache_checked(".tile_cache")
-        .with_attribution(
-            "© MapTiler© OpenStreetMap contributors".to_string(),
-            "https://www.maptiler.com/copyright/".to_string(),
-        )
-        .build()
-        .expect("failed to create layer");
+    let metadata = backend.get_metadata().await?;
+    println!("metadata: {}", metadata);
+
+    assert_eq!(header.min_zoom, 0);
+
+    let schema = TileSchema::pmtiles(header.max_zoom as _);
+    let layer = VectorTileLayerBuilder::new_with_provider(VectorTileProvider::new(
+        Arc::new(ProtomapVectorTileLoader { reader: backend }),
+        Arc::new(ThreadVtProcessor::new(schema.clone())),
+    ))
+    .with_tile_schema(schema)
+    .build()
+    .expect("failed to create layer");
 
     let layer = Arc::new(RwLock::new(layer));
 
@@ -109,55 +104,76 @@ pub(crate) fn run() {
         _ => EventPropagation::Propagate,
     };
 
-    let map = MapBuilder::default().with_layer(layer.clone()).build();
+    let map = MapBuilder::default()
+        .with_latlon(0., 0.)
+        .with_z_level(0)
+        .with_layer(layer.clone()).build();
+
     galileo_egui::init_with_app(Box::new(|cc| {
-        Ok(Box::new(App::new(map, layer, cc, handler)))
+        Ok(Box::new(App::new(map, cc, handler)))
     }))
-        .expect("failed to initialize");
+    .expect("failed to initialize");
+
+    Ok(())
 }
 
-fn gray_style() -> VectorTileStyle {
-    let style_str = r##"
-{
-  "rules": [
-  ],
-  "background": "#ffffffff",
-  "default_symbol": {
-    "line": {
-      "stroke_color": "#000000ff",
-      "width": 0.5
-    },
-    "polygon": {
-      "fill_color": "#999999ff"
-    }
-  }
-}"##;
-    serde_json::from_str(style_str).expect("invalid style json")
+struct App {
+    map: EguiMapState,
 }
 
-fn tile_schema() -> TileSchema {
-    const ORIGIN: Point2 = Point2::new(-20037508.342787, 20037508.342787);
-    const TOP_RESOLUTION: f64 = 156543.03392800014 / 4.0;
-
-    let mut lods = vec![Lod::new(TOP_RESOLUTION, 0).expect("invalid config")];
-    for i in 1..16 {
-        lods.push(
-            Lod::new(lods[(i - 1) as usize].resolution() / 2.0, i).expect("invalid tile schema"),
-        );
-    }
-
-    TileSchema {
-        origin: ORIGIN,
-        bounds: Rect::new(
-            -20037508.342787,
-            -20037508.342787,
-            20037508.342787,
-            20037508.342787,
-        ),
-        lods: lods.into_iter().collect(),
-        tile_width: 1024,
-        tile_height: 1024,
-        y_direction: VerticalDirection::TopToBottom,
-        crs: Crs::EPSG3857,
+impl eframe::App for App {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            EguiMap::new(&mut self.map).show_ui(ui);
+        });
     }
 }
+
+impl App {
+    fn new(
+        map: Map,
+        cc: &CreationContext,
+        handler: impl UserEventHandler + 'static,
+    ) -> Self {
+        Self {
+            map: EguiMapState::new(
+                map,
+                cc.egui_ctx.clone(),
+                cc.wgpu_render_state.clone().expect("no render state"),
+                [Box::new(handler) as Box<dyn UserEventHandler>],
+            ),
+        }
+    }
+}
+
+trait TileSchemaExt {
+    fn pmtiles(lods: u32) -> Self;
+}
+
+impl TileSchemaExt for TileSchema {
+    fn pmtiles(lods: u32) -> TileSchema {
+        let max_resolution = 156543.03392804097;
+        let lods = (0..lods)
+            .map(|z| Lod::new(
+                max_resolution / 2f64.powi(z as i32),
+                z,
+            ).unwrap())
+            .collect();
+
+        TileSchema {
+            origin: Point2::new(-20037508.342789, 20037508.342789),
+            bounds: Rect::new(
+                -20037508.342789,
+                -20037508.342789,
+                20037508.342789,
+                20037508.342789,
+            ),
+            lods,
+            tile_width: 256,
+            tile_height: 256,
+            y_direction: VerticalDirection::TopToBottom,
+            crs: Crs::EPSG3857,
+        }
+    }
+}
+
