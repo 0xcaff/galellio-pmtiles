@@ -1,6 +1,3 @@
-//! This exmpale shows how to create and work with vector tile layers.
-
-use std::sync::Arc;
 use eframe::CreationContext;
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
 use galileo::layer::vector_tile_layer::tile_provider::loader::{TileLoadError, VectorTileLoader};
@@ -15,9 +12,9 @@ use galileo_types::cartesian::{Point2, Rect};
 use galileo_types::geo::Crs;
 use parking_lot::RwLock;
 use pmtiles::async_reader::{AsyncBackend, AsyncPmTilesReader};
-use pmtiles::cache::DirectoryCache;
-use pmtiles::reqwest::Client;
-use pmtiles::{Compression, TileType};
+use pmtiles::cache::{DirectoryCache, NoCache};
+use pmtiles::{Compression, MmapBackend, TileType};
+use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 
 struct ProtomapVectorTileLoader<B, C> {
@@ -31,6 +28,7 @@ where
     C: DirectoryCache + Sync + Send,
 {
     async fn load(&self, index: TileIndex) -> Result<MvtTile, TileLoadError> {
+        println!("loading tile index {:?}", &index);
         let Ok(result) = self.reader
                     .get_tile(index.z as _, index.x as _, index.y as _).await else {
             return Err(TileLoadError::Network);
@@ -57,10 +55,8 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    let client = Client::new();
-    let backend =
-        AsyncPmTilesReader::new_with_url(client, "https://demo-bucket.protomaps.com/v4.pmtiles")
-            .await?;
+    let backend = MmapBackend::try_from("/Users/martin/Downloads/20250310.pmtiles").await?;
+    let backend = AsyncPmTilesReader::try_from_cached_source(backend, NoCache).await?;
 
     let header = backend.get_header();
     assert_eq!(header.tile_compression, Compression::Gzip);

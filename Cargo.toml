@@ -11,8 +11,8 @@ galileo-egui = { path = "vendor/galileo/galileo-egui" }
 galileo-types = { path = "vendor/galileo/galileo-types" }
 galileo-mvt = { path = "vendor/galileo/galileo-mvt" }
 egui = "0.31"
-pmtiles = { version = "0.11.0", features = ["http-async"] }
-tokio = { version = "1.44.0", features = ["macros", "rt-multi-thread"] }
+pmtiles = { version = "0.11.0", features = ["http-async", "mmap-async-tokio"] }
+tokio = { version = "1.44.0", features = ["macros"] }
 anyhow = "1.0.97"
 async-trait = "0.1.87"
 reqwest = { version = "0.12.4", features = ["rustls-tls", "json"] }
