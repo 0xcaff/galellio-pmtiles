@@ -1,6 +1,6 @@
-use galileo::{Lod, TileSchema};
 use galileo::layer::vector_tile_layer::tile_provider::loader::{TileLoadError, VectorTileLoader};
 use galileo::tile_schema::{TileIndex, VerticalDirection};
+use galileo::{Lod, TileSchema};
 use galileo_mvt::MvtTile;
 use galileo_types::cartesian::{Point2, Rect};
 use galileo_types::geo::Crs;
@@ -12,7 +12,7 @@ pub struct ProtomapVectorTileLoader<B, C> {
     reader: AsyncPmTilesReader<B, C>,
 }
 
-impl <B, C> ProtomapVectorTileLoader<B, C> {
+impl<B, C> ProtomapVectorTileLoader<B, C> {
     pub fn new(reader: AsyncPmTilesReader<B, C>) -> Self {
         Self { reader }
     }

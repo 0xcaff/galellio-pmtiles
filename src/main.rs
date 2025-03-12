@@ -1,11 +1,11 @@
-mod style;
 mod protomap_loader;
+mod style;
 
 use crate::protomap_loader::{ProtomapVectorTileLoader, TileSchemaExt};
 use crate::style::make_style;
 use eframe::CreationContext;
+use egui::{Frame, Margin};
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
-use galileo::layer::vector_tile_layer::tile_provider::loader::VectorTileLoader;
 use galileo::layer::vector_tile_layer::tile_provider::VectorTileProvider;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::platform::native::vt_processor::ThreadVtProcessor;
@@ -13,12 +13,11 @@ use galileo::tile_schema::TileSchema;
 use galileo::{Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
 use parking_lot::RwLock;
-use pmtiles::async_reader::{AsyncBackend, AsyncPmTilesReader};
-use pmtiles::cache::{DirectoryCache, NoCache};
+use pmtiles::async_reader::AsyncPmTilesReader;
+use pmtiles::cache::NoCache;
 use pmtiles::{Compression, HttpBackend, TileType};
 use reqwest::Client;
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -29,10 +28,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let header = backend.get_header();
     assert_eq!(header.tile_compression, Compression::Gzip);
     assert_eq!(header.tile_type, TileType::Mvt);
-
-    let metadata = backend.get_metadata().await?;
-    println!("metadata: {}", metadata);
-
     assert_eq!(header.min_zoom, 0);
 
     let schema = TileSchema::pmtiles(header.max_zoom as _);
@@ -42,8 +37,7 @@ async fn main() -> Result<(), anyhow::Error> {
     ))
     .with_style(make_style())
     .with_tile_schema(schema)
-    .build()
-    .expect("failed to create layer");
+    .build()?;
 
     let layer = Arc::new(RwLock::new(layer));
 
@@ -84,8 +78,7 @@ async fn main() -> Result<(), anyhow::Error> {
         "Galileo Dev Map",
         native_options,
         Box::new(|cc| Ok(Box::new(App::new(map, cc, handler)))),
-    )
-    .expect("failed to create eframe app");
+    )?;
 
     Ok(())
 }
@@ -96,9 +89,11 @@ struct App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            EguiMap::new(&mut self.map).show_ui(ui);
-        });
+        egui::CentralPanel::default()
+            .frame(Frame::central_panel(&ctx.style()).inner_margin(Margin::ZERO))
+            .show(ctx, |ui| {
+                EguiMap::new(&mut self.map).show_ui(ui);
+            });
     }
 }
 
@@ -114,4 +109,3 @@ impl App {
         }
     }
 }
-
