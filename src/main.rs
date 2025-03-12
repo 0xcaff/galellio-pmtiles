@@ -71,6 +71,11 @@ async fn main() -> Result<(), anyhow::Error> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1000.0, 1000.0])
             .with_min_inner_size([300.0, 220.0]),
+        window_builder: Some(Box::new(|it| {
+            it.with_fullsize_content_view(true)
+                .with_titlebar_shown(false)
+                .with_title_shown(false)
+        })),
         ..Default::default()
     };
 
