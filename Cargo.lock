@@ -1186,7 +1186,6 @@ dependencies = [
 [[package]]
 name = "galileo"
 version = "0.1.1"
-source = "git+https://github.com/Maximkaaa/galileo#42ba40cad0330bc3a014ce65cd53c6fd7b918bf3"
 dependencies = [
  "ahash",
  "async-trait",
@@ -1236,7 +1235,6 @@ dependencies = [
 [[package]]
 name = "galileo-egui"
 version = "0.1.1"
-source = "git+https://github.com/Maximkaaa/galileo#42ba40cad0330bc3a014ce65cd53c6fd7b918bf3"
 dependencies = [
  "eframe",
  "egui",
@@ -1252,7 +1250,6 @@ dependencies = [
 [[package]]
 name = "galileo-mvt"
 version = "0.1.1"
-source = "git+https://github.com/Maximkaaa/galileo#42ba40cad0330bc3a014ce65cd53c6fd7b918bf3"
 dependencies = [
  "bytes",
  "galileo-types",
@@ -1282,14 +1279,12 @@ dependencies = [
  "parking_lot 0.12.3",
  "pmtiles",
  "reqwest 0.12.13",
- "serde_json",
  "tokio",
 ]
 
 [[package]]
 name = "galileo-types"
 version = "0.1.1"
-source = "git+https://github.com/Maximkaaa/galileo#42ba40cad0330bc3a014ce65cd53c6fd7b918bf3"
 dependencies = [
  "approx",
  "geo-types",
@@ -3221,7 +3216,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

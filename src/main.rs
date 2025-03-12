@@ -1,7 +1,6 @@
 //! This exmpale shows how to create and work with vector tile layers.
 
 use std::sync::Arc;
-
 use eframe::CreationContext;
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
 use galileo::layer::vector_tile_layer::tile_provider::loader::{TileLoadError, VectorTileLoader};
@@ -32,7 +31,6 @@ where
     C: DirectoryCache + Sync + Send,
 {
     async fn load(&self, index: TileIndex) -> Result<MvtTile, TileLoadError> {
-        println!("loading index: {:?}", index);
         let Ok(result) = self.reader
                     .get_tile(index.z as _, index.x as _, index.y as _).await else {
             return Err(TileLoadError::Network);
@@ -85,23 +83,26 @@ async fn main() -> Result<(), anyhow::Error> {
     let layer = Arc::new(RwLock::new(layer));
 
     let layer_copy = layer.clone();
-    let handler = move |ev: &UserEvent, map: &mut Map| match ev {
-        UserEvent::Click(MouseButton::Left, mouse_event) => {
-            let view = map.view().clone();
-            if let Some(position) = map
-                .view()
-                .screen_to_map(mouse_event.screen_pointer_position)
-            {
-                let features = layer_copy.read().get_features_at(&position, &view);
+    let handler = move |ev: &UserEvent, map: &mut Map| {
+        match ev {
+            UserEvent::Scroll(..) => EventPropagation::Stop,
+            UserEvent::Click(MouseButton::Left, mouse_event) => {
+                let view = map.view().clone();
+                if let Some(position) = map
+                    .view()
+                    .screen_to_map(mouse_event.screen_pointer_position)
+                {
+                    let features = layer_copy.read().get_features_at(&position, &view);
 
-                for (layer, feature) in features {
-                    println!("{layer}, {:?}", feature.properties);
+                    for (layer, feature) in features {
+                        println!("{layer}, {:?}", feature.properties);
+                    }
                 }
-            }
 
-            EventPropagation::Stop
+                EventPropagation::Stop
+            }
+            _ => EventPropagation::Propagate,
         }
-        _ => EventPropagation::Propagate,
     };
 
     let map = MapBuilder::default()
@@ -109,10 +110,16 @@ async fn main() -> Result<(), anyhow::Error> {
         .with_z_level(0)
         .with_layer(layer.clone()).build();
 
-    galileo_egui::init_with_app(Box::new(|cc| {
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1000.0, 1000.0])
+            .with_min_inner_size([300.0, 220.0]),
+        ..Default::default()
+    };
+
+    eframe::run_native("Galileo Dev Map", native_options, Box::new(|cc| {
         Ok(Box::new(App::new(map, cc, handler)))
-    }))
-    .expect("failed to initialize");
+    })).expect("failed to create eframe app");
 
     Ok(())
 }

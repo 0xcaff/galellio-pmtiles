@@ -1,0 +1,74 @@
+diff -ruN vendor/galileo/galileo/src/control/event_processor.rs vendor/galileo/galileo/src/control/event_processor.rs
+--- a/galileo/src/control/event_processor.rs      2025-03-11 19:26:49
++++ b/galileo/src/control/event_processor.rs      2025-03-11 19:24:26
+@@ -187,6 +187,9 @@
+
+                 Some(events)
+             }
++            RawUserEvent::Zoom(delta) => {
++                Some(vec![UserEvent::Zoom(delta, self.pointer_position)])
++            }
+             RawUserEvent::Scroll(delta) => {
+                 Some(vec![UserEvent::Scroll(delta, self.get_mouse_event())])
+             }
+diff -ruN vendor/galileo/galileo/src/control/mod.rs vendor/galileo/galileo/src/control/mod.rs
+--- a/galileo/src/control/mod.rs   2025-03-11 19:26:49
++++ b/galileo/src/control/mod.rs   2025-03-11 19:24:26
+@@ -51,6 +51,7 @@
+     /// Scroll was called (by a mouse wheel or touch pad scrolling). The number is the number of lines that the event
+     /// would scroll if it was scrolling a text.
+     Scroll(f64),
++    Zoom(f64),
+     /// New touch started.
+     TouchStart(TouchEvent),
+     /// Existing touch moved.
+diff -ruN vendor/galileo/galileo/src/view.rs vendor/galileo/galileo/src/view.rs
+--- a/galileo/src/view.rs 2025-03-11 19:26:49
++++ b/galileo/src/view.rs  2025-03-11 19:17:01
+@@ -338,7 +338,7 @@
+         }
+     }
+
+-    pub(crate) fn zoom(&self, zoom: f64, base_point: Point2) -> Self {
++    pub fn zoom(&self, zoom: f64, base_point: Point2) -> Self {
+         let base_point = self.screen_to_map(base_point);
+         let resolution = self.resolution * zoom;
+
+diff -ruN vendor/galileo/galileo-egui/src/egui_map.rs vendor/galileo/galileo-egui/src/egui_map.rs
+--- a/galileo-egui/src/egui_map.rs 2025-03-11 19:26:49
++++ b/galileo-egui/src/egui_map.rs 2025-03-11 19:25:55
+@@ -68,7 +68,7 @@
+ }
+
+ pub struct EguiMapState {
+-    map: Map,
++    pub map: Map,
+     egui_render_state: RenderState,
+     renderer: WgpuRenderer,
+     requires_redraw: Arc<AtomicBool>,
+@@ -290,7 +290,9 @@
+
+                 Some(RawUserEvent::Scroll(zoom))
+             }
+-
++            Event::Zoom(delta) => {
++                Some(RawUserEvent::Zoom((*delta as f64).recip()))
++            }
+             _ => None,
+         }
+     }
+
+
+diff -ruN vendor/galileo/galileo/src/view.rs vendor/galileo/galileo/src/view.rs
+--- a/galileo/src/view.rs  2025-03-11 18:55:04
++++ b/galileo/src/view.rs  2025-03-11 18:58:02
+@@ -338,7 +338,7 @@
+         }
+     }
+
+-    pub(crate) fn zoom(&self, zoom: f64, base_point: Point2) -> Self {
++    pub fn zoom(&self, zoom: f64, base_point: Point2) -> Self {
+         let base_point = self.screen_to_map(base_point);
+         let resolution = self.resolution * zoom;
+
+

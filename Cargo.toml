@@ -6,11 +6,10 @@ edition = "2021"
 [dependencies]
 eframe = { version = "0.31", default-features = false }
 parking_lot = "0.12.3"
-serde_json = "1.0.140"
-galileo = { git = "https://github.com/Maximkaaa/galileo", package = "galileo" }
-galileo-egui = { git = "https://github.com/Maximkaaa/galileo", package = "galileo-egui" }
-galileo-types = { git = "https://github.com/Maximkaaa/galileo", package = "galileo-types" }
-galileo-mvt = { git = "https://github.com/Maximkaaa/galileo", package = "galileo-mvt" }
+galileo = { path = "vendor/galileo/galileo" }
+galileo-egui = { path = "vendor/galileo/galileo-egui" }
+galileo-types = { path = "vendor/galileo/galileo-types" }
+galileo-mvt = { path = "vendor/galileo/galileo-mvt" }
 egui = "0.31"
 pmtiles = { version = "0.11.0", features = ["http-async"] }
 tokio = { version = "1.44.0", features = ["macros", "rt-multi-thread"] }
