@@ -85,7 +85,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let layer_copy = layer.clone();
     let handler = move |ev: &UserEvent, map: &mut Map| {
         match ev {
-            UserEvent::Scroll(..) => EventPropagation::Stop,
             UserEvent::Click(MouseButton::Left, mouse_event) => {
                 let view = map.view().clone();
                 if let Some(position) = map
