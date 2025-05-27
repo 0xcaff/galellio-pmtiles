@@ -1,8 +1,3 @@
-mod protomap_loader;
-mod style;
-
-use crate::protomap_loader::{ProtomapVectorTileLoader, TileSchemaExt};
-use crate::style::make_style;
 use eframe::CreationContext;
 use egui::{Frame, Margin};
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
@@ -18,6 +13,8 @@ use pmtiles::cache::NoCache;
 use pmtiles::{Compression, HttpBackend, TileType};
 use reqwest::Client;
 use std::sync::Arc;
+use galileo_protomaps::{ProtomapVectorTileLoader, TileSchemaExt};
+use galileo_protomaps::style::make_style;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
