@@ -4,16 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+galileo = { git = "https://github.com/Maximkaaa/galileo.git" }
+galileo-types = { git = "https://github.com/Maximkaaa/galileo.git" }
+galileo-mvt = { git = "https://github.com/Maximkaaa/galileo.git" }
+pmtiles = { version = "0.11.0", features = ["http-async", "mmap-async-tokio"] }
+tokio = { version = "1.44.0", features = ["macros"] }
+async-trait = "0.1.87"
+async-compression = "0.4.20"
+
+[dev-dependencies]
 eframe = { version = "0.31", default-features = false }
 parking_lot = "0.12.3"
-galileo = { git = "https://github.com/Maximkaaa/galileo.git" }
 galileo-egui = { git = "https://github.com/Maximkaaa/galileo.git" }
 galileo-types = { git = "https://github.com/Maximkaaa/galileo.git" }
 galileo-mvt = { git = "https://github.com/Maximkaaa/galileo.git" }
 egui = "0.31"
-pmtiles = { version = "0.11.0", features = ["http-async", "mmap-async-tokio"] }
-tokio = { version = "1.44.0", features = ["macros"] }
 anyhow = "1.0.97"
-async-trait = "0.1.87"
 reqwest = { version = "0.12.4", features = ["rustls-tls", "json"] }
-async-compression = "0.4.20"
