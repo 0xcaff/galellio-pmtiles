@@ -7,14 +7,14 @@ use galileo::platform::native::vt_processor::ThreadVtProcessor;
 use galileo::tile_schema::TileSchema;
 use galileo::{Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
+use galileo_protomaps::style::make_style;
+use galileo_protomaps::{ProtomapVectorTileLoader, TileSchemaExt};
 use parking_lot::RwLock;
 use pmtiles::async_reader::AsyncPmTilesReader;
 use pmtiles::cache::NoCache;
 use pmtiles::{Compression, HttpBackend, TileType};
 use reqwest::Client;
 use std::sync::Arc;
-use galileo_protomaps::{ProtomapVectorTileLoader, TileSchemaExt};
-use galileo_protomaps::style::make_style;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
